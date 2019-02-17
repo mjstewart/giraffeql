@@ -9,13 +9,13 @@ class ComposedTypeResolver(val resolvers: List<TypeResolver> = emptyList()) : Ty
 
     companion object {
         fun defaultResolver(): ComposedTypeResolver = ComposedTypeResolver(listOf(
-                ScalarTypeResolver(),
+//                ScalarTypeResolver(),
                 ObjectTypeResolver(),
-                InputObjectTypeResolver(),
-                IDTypeResolver(),
-                EnumTypeResolver(),
-                ListLikeTypeResolver(),
-                OptionalTypeResolver()
+//                InputObjectTypeResolver(),
+                IDTypeResolver()
+//                EnumTypeResolver(),
+//                ListLikeTypeResolver(),
+//                OptionalTypeResolver()
         ))
     }
 

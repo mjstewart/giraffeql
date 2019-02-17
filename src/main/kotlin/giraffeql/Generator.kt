@@ -12,9 +12,7 @@ fun generateSchema(config: SchemaConfiguration) {
     // TODO: iterate over many packages, not just first.
 
     val classes = config.packagesToScan().flatMap { path ->
-        println("path=$path")
-        println(ClasspathHelper.forPackage("giraffeql.example.demo.domain").size)
-        Reflections("demo.domain").getTypesAnnotatedWith(GQLType::class.java).map { it.kotlin }
+        Reflections(path).getTypesAnnotatedWith(GQLType::class.java).map { it.kotlin }
     }
 
     val resolver = ComposedTypeResolver.defaultResolver()
