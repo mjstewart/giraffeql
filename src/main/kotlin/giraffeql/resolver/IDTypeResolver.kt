@@ -17,6 +17,7 @@ class IDTypeResolver(
 
     override fun resolve(parent: KClass<*>, property: KProperty1<*, *>, env: TypeResolverEnvironment): GraphQLType? =
             if (property.name.toLowerCase().endsWith("id") && isSupportedID(property.returnType.toKClass())) {
+                println("is supported ${parent.simpleName}, ${property.name}, ${property.returnType}")
                 Scalars.GraphQLID.wrapNonNull(property.returnType)
             } else {
                 null

@@ -12,6 +12,7 @@ class ComposedTypeResolver(val resolvers: List<TypeResolver> = emptyList()) : Ty
                 ScalarTypeResolver(),
                 ObjectTypeResolver(),
                 InputObjectTypeResolver(),
+                IDTypeResolver(),
                 EnumTypeResolver(),
                 ListLikeTypeResolver(),
                 OptionalTypeResolver()
