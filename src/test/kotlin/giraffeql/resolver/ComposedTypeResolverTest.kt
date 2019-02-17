@@ -10,7 +10,7 @@ class ComposedTypeResolverTest {
     fun `default resolvers`() {
         val resolvers = ComposedTypeResolver.defaultResolver().resolvers.map { it::class.getNameOrThrow().name  }.toSet()
 
-        assertThat(resolvers.size).isEqualTo(5)
+        assertThat(resolvers.size).isEqualTo(6)
         assertThat("ScalarTypeResolver" in resolvers).isTrue()
         assertThat("ObjectTypeResolver" in resolvers).isTrue()
         assertThat("InputObjectTypeResolver" in resolvers).isTrue()

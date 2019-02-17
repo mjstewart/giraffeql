@@ -19,7 +19,7 @@ class ObjectTypeResolver : TypeResolver {
                             .name(kClassName.name)
                             .also { builder ->
                                 kClass.memberProperties.forEach { prop ->
-                                    env.resolver.resolve(prop.returnType, env).also {
+                                    env.resolver.resolve(kClass, prop, env).also {
                                         builder.field(toField(kClassName, prop, it?.wrapNonNull(prop.returnType)))
                                     }
                                 }

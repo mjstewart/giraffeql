@@ -7,9 +7,6 @@ data class CacheEntry(val value: GraphQLType, val hits: Long = 0)
 
 class KClassCache(private val cache: MutableMap<KClassName, CacheEntry> = mutableMapOf()) {
 
-//    fun getCachedOrElsePut(kClassName: KClassName, producer: () -> GraphQLType): GraphQLType =
-//            cache[kClassName].let { it?.value ?: producer().apply { cache[kClassName] = CacheMetric(this) } }
-
     fun getCachedOrElsePut(kClassName: KClassName, producer: () -> GraphQLType): GraphQLType =
             cache[kClassName]
                     ?.also { cache[kClassName] = it.copy(hits = it.hits + 1) }

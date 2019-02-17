@@ -10,21 +10,14 @@ import kotlin.test.assertNotNull
 class EnumTypeResolverTest {
 
     @Test
-    fun `return null when KClass is not an enum`() {
-        val env = mockEnvironment(resolver = EnumTypeResolver())
+    fun `return null when no resolver matches`() {
+        val env = mockEnvironment(resolver = ComposedTypeResolver(listOf(EnumTypeResolver())))
 
-        data class Test(val x: String)
+        data class TestEnum(val x: String)
 
-        assertThat(env.resolver.resolve(Test::class, env)).isNull()
-    }
-
-    @Test
-    fun `return null when KType is not an enum`() {
-        val env = mockEnvironment(resolver = EnumTypeResolver())
-
-        data class Test(val x: String)
-
-        assertThat(env.resolver.resolve(getPropertyType(Test::class, "x"), env)).isNull()
+        assertThat(env.resolver.resolve(TestEnum::class, env)).isNull()
+        assertThat(env.resolver.resolve(TestEnum::class, getProperty(TestEnum::class, "x"), env)).isNull()
+        assertThat(env.resolver.resolve(getProperty(TestEnum::class, "x").returnType, env)).isNull()
     }
 
     enum class TestEnum {
@@ -52,12 +45,32 @@ class EnumTypeResolverTest {
 
     @Test
     fun `resolve enum for KType`() {
-        val env = mockEnvironment(resolver =
-        ComposedTypeResolver(listOf(EnumTypeResolver(), ObjectTypeResolver())))
+        val env = mockEnvironment(resolver = ComposedTypeResolver(listOf(EnumTypeResolver())))
 
         data class TestEnumProp(val x: TestEnum)
 
-        env.resolver.resolve(getPropertyType(TestEnumProp::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(TestEnumProp::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+
+            val expect = """
+                enum TestEnum {
+                  A
+                  B
+                  C
+                }
+            """.trimIndent()
+
+            assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(expect)
+        }
+    }
+
+    @Test
+    fun `resolve enum for KProperty`() {
+        val env = mockEnvironment(resolver = ComposedTypeResolver(listOf(EnumTypeResolver())))
+
+        data class TestEnumProp(val x: TestEnum)
+
+        env.resolver.resolve(TestEnumProp::class, getProperty(TestEnumProp::class, "x"), env).also { actual ->
             assertNotNull(actual)
 
             val expect = """

@@ -3,6 +3,8 @@ package giraffeql.resolver
 import giraffeql.extensions.removeNonNull
 import graphql.schema.GraphQLType
 import java.util.*
+import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.jvm.jvmErasure

@@ -1,6 +1,5 @@
 package giraffeql.resolver
 
-import giraffeql.extensions.KClassName
 import graphql.schema.GraphQLTypeUtil
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -10,29 +9,16 @@ import kotlin.test.assertNull
 class ListLikeTypeResolverTest {
 
     @Test
-    fun `return null on non matching list like KClass`() {
+    fun `return null when no resolver matches`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver()))
         )
 
         data class Test(val x: String)
 
-        env.resolver.resolve(Test::class, env).also { actual ->
-            assertNull(actual)
-        }
-    }
-
-    @Test
-    fun `return null on non matching list like KType`() {
-        val env = mockEnvironment(
-                resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver()))
-        )
-
-        data class Test(val x: String)
-
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
-            assertNull(actual)
-        }
+        assertThat(env.resolver.resolve(Test::class, env)).isNull()
+        assertThat(env.resolver.resolve(getProperty(Test::class, "x").returnType, env)).isNull()
+        assertThat(env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env)).isNull()
     }
 
     @Test
@@ -43,9 +29,8 @@ class ListLikeTypeResolverTest {
 
         data class Test(val x: List<*>)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
-            assertNull(actual)
-        }
+        assertThat(env.resolver.resolve(getProperty(Test::class, "x").returnType, env)).isNull()
+        assertThat(env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env)).isNull()
     }
 
     @Test
@@ -56,118 +41,149 @@ class ListLikeTypeResolverTest {
 
         data class Test<T>(val x: List<T>)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
-            assertNull(actual)
-        }
+        assertThat(env.resolver.resolve(getProperty(Test::class, "x").returnType, env)).isNull()
+        assertThat(env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env)).isNull()
     }
 
     @Test
-    fun `single nested nullable List type`() {
+    fun `nullable List type`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver(), ScalarTypeResolver()))
         )
 
         data class Test(val x: List<String?>?)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[String]")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[String]")
         }
     }
 
     @Test
-    fun `single nested List type`() {
+    fun `List type`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver(), ScalarTypeResolver()))
         )
 
         data class Test(val x: List<String>)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[String!]!")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[String!]!")
         }
     }
 
     @Test
-    fun `multiple nested nullable List type`() {
+    fun `nullable nested List type`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver(), ScalarTypeResolver()))
         )
 
         data class Test(val x: List<List<List<List<String?>?>?>?>?)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[String]]]]")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[String]]]]")
         }
     }
 
     @Test
-    fun `multiple nested List type`() {
+    fun `nested List type`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver(), ScalarTypeResolver()))
         )
 
         data class Test(val x: List<List<List<List<String>>>>)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[String!]!]!]!]!")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[String!]!]!]!]!")
         }
     }
 
     @Test
-    fun `single nested nullable Array type`() {
+    fun `nullable Array type`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver(), ScalarTypeResolver()))
         )
 
         data class Test(@Suppress("ArrayInDataClass") val x: Array<String?>?)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[String]")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[String]")
         }
     }
 
     @Test
-    fun `single nested Array type`() {
+    fun `Array type`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver(), ScalarTypeResolver()))
         )
 
         data class Test(@Suppress("ArrayInDataClass") val x: Array<String>)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[String!]!")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[String!]!")
         }
     }
 
     @Test
-    fun `multiple nested nullable Array type`() {
+    fun `nested nullable Array type`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver(), ScalarTypeResolver()))
         )
 
         data class Test(@Suppress("ArrayInDataClass") val x: Array<Array<Array<Array<String?>?>?>?>?)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[String]]]]")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[String]]]]")
         }
     }
 
     @Test
-    fun `multiple nested Array type`() {
+    fun `nested Array type`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ListLikeTypeResolver(), ScalarTypeResolver()))
         )
 
         data class Test(@Suppress("ArrayInDataClass") val x: Array<Array<Array<Array<String>>>>)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[String!]!]!]!]!")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[String!]!]!]!]!")
         }
@@ -183,7 +199,11 @@ class ListLikeTypeResolverTest {
 
         data class Test(@Suppress("ArrayInDataClass") val x: Array<List<Array<List<Person?>?>?>?>?)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[Person]]]]")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[Person]]]]")
         }
@@ -197,7 +217,11 @@ class ListLikeTypeResolverTest {
 
         data class Test(@Suppress("ArrayInDataClass") val x: Array<List<Array<List<Person>>>>)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[Person!]!]!]!]!")
+        }
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(GraphQLTypeUtil.simplePrint(actual)).isEqualTo("[[[[Person!]!]!]!]!")
         }

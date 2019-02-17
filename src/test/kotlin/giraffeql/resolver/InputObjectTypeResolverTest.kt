@@ -3,9 +3,6 @@ package giraffeql.resolver
 import giraffeql.configuration.SchemaConfiguration
 import giraffeql.extensions.KClassName
 import giraffeql.extensions.TypeResolverMismatchException
-import graphql.Scalars
-import graphql.schema.GraphQLInputObjectType
-import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.idl.SchemaPrinter
 import org.assertj.core.api.Assertions.*
@@ -17,34 +14,24 @@ import kotlin.reflect.KClass
 class InputObjectTypeResolverTest {
 
     @Test
-    fun `return null on non matching KClass`() {
+    fun `return null when no resolver matches`() {
         val env = mockEnvironment(resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver())))
 
         data class Test(val x: String)
 
-        env.resolver.resolve(Test::class, env).also { actual ->
-            assertNull(actual)
-        }
+        assertThat(env.resolver.resolve(Test::class, env)).isNull()
+        assertThat(env.resolver.resolve(getProperty(Test::class, "x").returnType, env)).isNull()
+        assertThat(env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env)).isNull()
     }
 
     @Test
-    fun `return null on non matching KType`() {
-        val env = mockEnvironment(resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver())))
-
-        data class Test(val x: String)
-
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
-            assertNull(actual)
-        }
-    }
-
-    @Test
-    fun `resolve input type by convention for matching KClass`() {
+    fun `resolve class ending with Input by convention for KClass`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver(), ScalarTypeResolver()))
         )
 
-        data class TestInput(val x: String)
+        data class PropertyTestInput(val y: String)
+        data class TestInput(val x: String, val y: PropertyTestInput)
 
         env.resolver.resolve(TestInput::class, env).also { actual ->
             assertNotNull(actual)
@@ -52,6 +39,7 @@ class InputObjectTypeResolverTest {
                     """
                         input TestInput {
                           x: String!
+                          y: PropertyTestInput!
                         }
                     """.trimIndent()
             )
@@ -59,20 +47,22 @@ class InputObjectTypeResolverTest {
     }
 
     @Test
-    fun `resolve input type by convention for matching KType`() {
+    fun `resolve class ending with Input by convention for KType`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver(), ScalarTypeResolver()))
         )
 
-        data class PropertyTestInput(val y: String)
+        data class AnotherPropertyInput(val z: String)
+        data class PropertyTestInput(val y: String, val z: AnotherPropertyInput)
         data class TestInput(val x: PropertyTestInput)
 
-        env.resolver.resolve(getPropertyType(TestInput::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(TestInput::class, "x").returnType, env).also { actual ->
             assertNotNull(actual)
             assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
                     """
                         input PropertyTestInput {
                           y: String!
+                          z: AnotherPropertyInput!
                         }
                     """.trimIndent()
             )
@@ -80,12 +70,36 @@ class InputObjectTypeResolverTest {
     }
 
     @Test
-    fun `resolve optional input type by convention for matching KClass`() {
+    fun `resolve class ending with Input by convention for KProperty`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver(), ScalarTypeResolver()))
         )
 
-        data class TestInput(val x: String?)
+        data class AnotherPropertyInput(val z: String)
+        data class PropertyTestInput(val y: String, val z: AnotherPropertyInput)
+        data class TestInput(val x: PropertyTestInput)
+
+        env.resolver.resolve(TestInput::class, getProperty(TestInput::class, "x"), env).also { actual ->
+            assertNotNull(actual)
+            assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
+                    """
+                        input PropertyTestInput {
+                          y: String!
+                          z: AnotherPropertyInput!
+                        }
+                    """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `resolve class ending with Input by convention for nullable KClass`() {
+        val env = mockEnvironment(
+                resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver(), ScalarTypeResolver()))
+        )
+
+        data class PropertyTestInput(val y: String)
+        data class TestInput(val x: String?, val y: PropertyTestInput?)
 
         env.resolver.resolve(TestInput::class, env).also { actual ->
             assertNotNull(actual)
@@ -93,6 +107,7 @@ class InputObjectTypeResolverTest {
                     """
                         input TestInput {
                           x: String
+                          y: PropertyTestInput
                         }
                     """.trimIndent()
             )
@@ -100,20 +115,45 @@ class InputObjectTypeResolverTest {
     }
 
     @Test
-    fun `resolve optional input type by convention for matching KType`() {
+    fun `resolve class ending with Input by convention for nullable KType`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver(), ScalarTypeResolver()))
         )
 
-        data class PropertyTestInput(val y: String?)
-        data class TestInput(val x: PropertyTestInput)
+        data class AnotherPropertyInput(val z: String?)
+        data class PropertyTestInput(val y: String?, val z: AnotherPropertyInput?)
+        data class TestInput(val x: PropertyTestInput?)
 
-        env.resolver.resolve(getPropertyType(TestInput::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(TestInput::class, "x").returnType, env).also { actual ->
             assertNotNull(actual)
             assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
                     """
                         input PropertyTestInput {
                           y: String
+                          z: AnotherPropertyInput
+                        }
+                    """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `resolve class ending with Input by convention for nullable KProperty`() {
+        val env = mockEnvironment(
+                resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver(), ScalarTypeResolver()))
+        )
+
+        data class AnotherPropertyInput(val z: String?)
+        data class PropertyTestInput(val y: String?, val z: AnotherPropertyInput?)
+        data class TestInput(val x: PropertyTestInput?)
+
+        env.resolver.resolve(TestInput::class, getProperty(TestInput::class, "x"), env).also { actual ->
+            assertNotNull(actual)
+            assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
+                    """
+                        input PropertyTestInput {
+                          y: String
+                          z: AnotherPropertyInput
                         }
                     """.trimIndent()
             )
@@ -159,7 +199,33 @@ class InputObjectTypeResolverTest {
         data class TestBIn(val y: Int)
         data class Test(val x: TestBIn)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
+                    """
+                        input TestBIn {
+                          y: Int!
+                        }
+                    """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `uses schema configuration to identify matching input KProperty`() {
+        val config = object : SchemaConfiguration {
+            override fun isInputType(kClass: KClass<*>): Boolean = kClass.simpleName?.endsWith("In") ?: false
+        }
+
+        val env = mockEnvironment(
+                resolver = ComposedTypeResolver(listOf(InputObjectTypeResolver(), ScalarTypeResolver())),
+                config = config
+        )
+
+        data class TestBIn(val y: Int)
+        data class Test(val x: TestBIn)
+
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
             assertNotNull(actual)
             assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
                     """

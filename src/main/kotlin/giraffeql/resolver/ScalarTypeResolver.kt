@@ -7,6 +7,7 @@ import graphql.schema.GraphQLType
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
 import kotlin.reflect.jvm.jvmErasure
 

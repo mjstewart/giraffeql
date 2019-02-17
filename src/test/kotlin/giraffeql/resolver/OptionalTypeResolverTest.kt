@@ -4,17 +4,44 @@ import graphql.schema.GraphQLTypeUtil
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.*
+import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
+import kotlin.reflect.KType
 import kotlin.test.assertNotNull
 
 class OptionalTypeResolverTest {
 
+    private data class TestCase(val kClass: KClass<*>, val expect: String, val description: String)
+
     @Test
-    fun `return null if not an Optional type`() {
+    fun `return null when no resolver matches`() {
         val env = mockEnvironment(resolver = OptionalTypeResolver())
 
         data class Test(val x: String)
 
-        assertThat(env.resolver.resolve(getPropertyType(Test::class, "x"), env)).isNull()
+        assertThat(env.resolver.resolve(Test::class, env)).isNull()
+        assertThat(env.resolver.resolve(getProperty(Test::class, "x").returnType, env)).isNull()
+        assertThat(env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env)).isNull()
+    }
+
+    private fun runResolverTest(kType: KType, testCase: TestCase, env: TypeResolverEnvironment) {
+        env.resolver.resolve(kType, env).also { actual ->
+            assertNotNull(actual, "KType resolver: ${testCase.description}: expected '${testCase.expect}', got null'")
+            val actualPrinted = GraphQLTypeUtil.simplePrint(actual).trim()
+            assertThat(actualPrinted)
+                    .withFailMessage("KType resolver: ${testCase.description}: expected '${testCase.expect}', got '$actualPrinted'")
+                    .isEqualTo(testCase.expect)
+        }
+    }
+
+    private fun runResolverTest(kProperty: KProperty1<*, *>, testCase: TestCase, env: TypeResolverEnvironment) {
+        env.resolver.resolve(testCase.kClass, kProperty, env).also { actual ->
+            assertNotNull(actual, "KProperty resolver: ${testCase.description}: expected '${testCase.expect}', got null'")
+            val actualPrinted = GraphQLTypeUtil.simplePrint(actual).trim()
+            assertThat(actualPrinted)
+                    .withFailMessage("KProperty resolver: ${testCase.description}: expected '${testCase.expect}', got '$actualPrinted'")
+                    .isEqualTo(testCase.expect)
+        }
     }
 
     @Test
@@ -28,17 +55,14 @@ class OptionalTypeResolverTest {
         data class Test4(val x: Optional<String>)
 
         listOf(
-                Triple(Test1::class ,"String", "Optional<String?>"),
-                Triple(Test2::class ,"String", "Optional<String>?"),
-                Triple(Test3::class ,"String", "Optional<String?>?"),
-                Triple(Test4::class ,"String", "Optional<String>")
-        ).forEach {(kClass, expect, description) ->
-            env.resolver.resolve(getPropertyType(kClass, "x"), env).also { actual ->
-                assertNotNull(actual)
-                val actualPrinted = GraphQLTypeUtil.simplePrint(actual).trim()
-                assertThat(actualPrinted)
-                        .withFailMessage("$description: expected '$expect', got '$actualPrinted'")
-                        .isEqualTo(expect)
+                TestCase(Test1::class, "String", "Test1"),
+                TestCase(Test2::class, "String", "Test2"),
+                TestCase(Test3::class, "String", "Test3"),
+                TestCase(Test4::class, "String", "Test4")
+        ).forEach { testCase ->
+            getProperty(testCase.kClass, extractFirstPropName(testCase.kClass)).also { property ->
+                runResolverTest(property.returnType, testCase, env)
+                runResolverTest(property, testCase, env)
             }
         }
     }
@@ -55,20 +79,17 @@ class OptionalTypeResolverTest {
         data class Test5(val x: Optional<List<List<List<String>?>>>)
 
         listOf(
-                Triple(Test1::class ,"String", "Optional<Optional<Optional<String>>>"),
-                Triple(Test2::class ,"String", "Optional<Optional<Optional<String?>?>?>?"),
+                TestCase(Test1::class, "String", "Test1"),
+                TestCase(Test2::class, "String", "Test2"),
 
                 // Only the first root level list type is considered the optional
-                Triple(Test3::class ,"[[[String!]!]!]", "Optional<List<List<List<String>>>>"),
-                Triple(Test4::class ,"[[[String]]]", "Optional<List<List<List<String?>?>?>?>?"),
-                Triple(Test5::class ,"[[[String!]]!]", "Optional<List<List<List<String>?>>>")
-        ).forEach {(kClass, expect, description) ->
-            env.resolver.resolve(getPropertyType(kClass, "x"), env).also { actual ->
-                assertNotNull(actual)
-                val actualPrinted = GraphQLTypeUtil.simplePrint(actual).trim()
-                assertThat(actualPrinted)
-                        .withFailMessage("$description, expect $expect, got $actualPrinted")
-                        .isEqualTo(expect)
+                TestCase(Test3::class, "[[[String!]!]!]", "Test3"),
+                TestCase(Test4::class, "[[[String]]]", "Test4"),
+                TestCase(Test5::class, "[[[String!]]!]", "Test5")
+        ).forEach { testCase ->
+            getProperty(testCase.kClass, extractFirstPropName(testCase.kClass)).also { property ->
+                runResolverTest(property.returnType, testCase, env)
+                runResolverTest(property, testCase, env)
             }
         }
     }

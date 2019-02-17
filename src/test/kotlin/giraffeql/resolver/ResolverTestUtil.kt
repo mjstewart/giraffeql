@@ -7,15 +7,19 @@ import graphql.schema.GraphQLType
 import io.mockk.every
 import io.mockk.mockk
 import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.jvmErasure
-
 
 fun mockEnvironment(
         resolver: TypeResolver = object : TypeResolver {},
         config: SchemaConfiguration = object : SchemaConfiguration {}
 ) = TypeResolverEnvironment(resolver, config)
 
-fun getPropertyType(kClass: KClass<*>, key: String): KType = kClass.memberProperties.first { it.name == key }.returnType
+fun getProperty(kClass: KClass<*>, key: String): KProperty1<*, *> = kClass.memberProperties.first { it.name == key }
+
+fun extractFirstPropName(kClass: KClass<*>): String = extractFirstProp(kClass).name
+
+fun extractFirstProp(kClass: KClass<*>): KProperty1<*, *> = kClass.memberProperties.first()

@@ -7,33 +7,21 @@ import graphql.schema.idl.SchemaPrinter
 import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class ObjectTypeResolverTest {
 
     @Test
-    fun `return null on non matching KClass`() {
-        val env = mockEnvironment(
-                resolver = ComposedTypeResolver(listOf(ObjectTypeResolver()))
-        )
-
-        env.resolver.resolve(Int::class, env).also { actual ->
-             assertNull(actual)
-        }
-    }
-
-    @Test
-    fun `return null on non matching KType`() {
+    fun `return null when no resolver matches`() {
         val env = mockEnvironment(
                 resolver = ComposedTypeResolver(listOf(ObjectTypeResolver()))
         )
 
         data class Test(val x: String)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
-            assertNull(actual)
-        }
+        assertThat(env.resolver.resolve(Int::class, env)).isNull()
+        assertThat(env.resolver.resolve(getProperty(Test::class, "x").returnType, env)).isNull()
+        assertThat(env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env)).isNull()
     }
 
     @Test
@@ -42,7 +30,8 @@ class ObjectTypeResolverTest {
                 resolver = ComposedTypeResolver(listOf(ObjectTypeResolver(), ScalarTypeResolver()))
         )
 
-        data class Test(val x: String)
+        data class AnotherTest(val y: String)
+        data class Test(val x: String, val y: AnotherTest)
 
         env.resolver.resolve(Test::class, env).also { actual ->
             assertNotNull(actual)
@@ -50,6 +39,7 @@ class ObjectTypeResolverTest {
                     """
                         type Test {
                           x: String!
+                          y: AnotherTest!
                         }
                     """.trimIndent()
             )
@@ -62,15 +52,108 @@ class ObjectTypeResolverTest {
                 resolver = ComposedTypeResolver(listOf(ObjectTypeResolver(), ScalarTypeResolver()))
         )
 
-        data class PropertyTest(val y: String)
+        data class AnotherProperty(val z: Int)
+        data class PropertyTest(val y: String, val z: AnotherProperty)
         data class Test(val x: PropertyTest)
 
-        env.resolver.resolve(getPropertyType(Test::class, "x"), env).also { actual ->
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
             assertNotNull(actual)
             assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
                     """
                         type PropertyTest {
                           y: String!
+                          z: AnotherProperty!
+                        }
+                    """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `resolve for KProperty`() {
+        val env = mockEnvironment(
+                resolver = ComposedTypeResolver(listOf(ObjectTypeResolver(), ScalarTypeResolver()))
+        )
+
+        data class AnotherProperty(val z: Int)
+        data class PropertyTest(val y: String, val z: AnotherProperty)
+        data class Test(val x: PropertyTest)
+
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
+            assertNotNull(actual)
+            assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
+                    """
+                        type PropertyTest {
+                          y: String!
+                          z: AnotherProperty!
+                        }
+                    """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `resolve for nullable KClass`() {
+        val env = mockEnvironment(
+                resolver = ComposedTypeResolver(listOf(ObjectTypeResolver(), ScalarTypeResolver()))
+        )
+
+        data class AnotherTest(val y: String?)
+        data class Test(val x: String?, val y: AnotherTest?)
+
+        env.resolver.resolve(Test::class, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(SchemaPrinter().print(actual).trim()).isEqualTo(
+                    """
+                        type Test {
+                          x: String
+                          y: AnotherTest
+                        }
+                    """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `resolve for nullable KType`() {
+        val env = mockEnvironment(
+                resolver = ComposedTypeResolver(listOf(ObjectTypeResolver(), ScalarTypeResolver()))
+        )
+
+        data class AnotherProperty(val z: Int?)
+        data class PropertyTest(val y: String?, val z: AnotherProperty?)
+        data class Test(val x: PropertyTest?)
+
+        env.resolver.resolve(getProperty(Test::class, "x").returnType, env).also { actual ->
+            assertNotNull(actual)
+            assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
+                    """
+                        type PropertyTest {
+                          y: String
+                          z: AnotherProperty
+                        }
+                    """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `resolve for nullable KProperty`() {
+        val env = mockEnvironment(
+                resolver = ComposedTypeResolver(listOf(ObjectTypeResolver(), ScalarTypeResolver()))
+        )
+
+        data class AnotherProperty(val z: Int?)
+        data class PropertyTest(val y: String?, val z: AnotherProperty?)
+        data class Test(val x: PropertyTest?)
+
+        env.resolver.resolve(Test::class, getProperty(Test::class, "x"), env).also { actual ->
+            assertNotNull(actual)
+            assertThat(SchemaPrinter().print(GraphQLTypeUtil.unwrapOne(actual)).trim()).isEqualTo(
+                    """
+                        type PropertyTest {
+                          y: String
+                          z: AnotherProperty
                         }
                     """.trimIndent()
             )

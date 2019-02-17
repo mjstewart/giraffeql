@@ -8,10 +8,8 @@ import kotlin.reflect.full.memberProperties
 
 class InputObjectTypeResolver : TypeResolver {
 
-    private fun isInputType(kClass: KClass<*>): Boolean = kClass.getNameOrThrow().name.endsWith("Input") && kClass.isClass()
-
     override fun resolve(kClass: KClass<*>, env: TypeResolverEnvironment): GraphQLType? =
-            if (!isInputType(kClass)) {
+            if (!env.config.isInputType(kClass)) {
                 null
             } else {
                 val kClassName = kClass.getNameOrThrow()
@@ -21,7 +19,7 @@ class InputObjectTypeResolver : TypeResolver {
                             .name(kClassName.name)
                             .also { builder ->
                                 kClass.memberProperties.forEach { prop ->
-                                    env.resolver.resolve(prop.returnType, env).also {
+                                    env.resolver.resolve(kClass, prop, env).also {
                                         builder.field(toField(kClassName, prop, it?.wrapNonNull(prop.returnType)))
                                     }
                                 }
@@ -42,6 +40,4 @@ class InputObjectTypeResolver : TypeResolver {
                     else -> null
                 }
             } ?: throw TypeResolverException(path = "${kClassName.name}.${prop.name}")
-
-
 }
